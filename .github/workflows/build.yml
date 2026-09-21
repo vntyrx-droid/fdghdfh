@@ -1,0 +1,66 @@
+name: Build
+
+# Produces downloadable plugin builds for each platform. The Windows job is the
+# one to grab for Ableton Live: its artifact contains Chorus.vst3.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS
+          - os: ubuntu-latest
+            name: Linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libjack-jackd2-dev \
+            libxinerama-dev libxcursor-dev libxrandr-dev libxcomposite-dev \
+            libxext-dev libxrender-dev libfreetype-dev libfontconfig1-dev \
+            libgl1-mesa-dev libcurl4-openssl-dev
+
+      # JUCE and clap-juce-extensions are fetched by CMake; caching them keeps
+      # repeat builds from re-cloning the whole of JUCE every time.
+      - name: Cache fetched dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # Upload the whole artefacts tree so the VST3 bundle keeps its internal
+      # folder structure, which hosts require in order to load it.
+      - name: Upload plugin builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chorus-${{ matrix.name }}
+          path: |
+            build/Chorus_artefacts/Release/VST3/**
+            build/Chorus_artefacts/Release/CLAP/**
+            build/Chorus_artefacts/Release/Standalone/**
+          if-no-files-found: error

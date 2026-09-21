@@ -55,6 +55,17 @@ sudo apt install libasound2-dev libxinerama-dev libxcursor-dev libxrandr-dev \
 | `CHORUS_BUILD_CLAP` | `ON` | Also build the CLAP version |
 | `CHORUS_BUILD_TESTS` | `ON` | Build the test executables |
 
+### Prebuilt downloads
+
+Every push builds Windows, macOS and Linux versions in CI. To download one
+without installing a compiler: open the repository's **Actions** tab, click the
+most recent **Build** run, and grab the artifact for your platform
+(`Chorus-Windows`, `Chorus-macOS`, `Chorus-Linux`) from the Artifacts section
+at the bottom. Unzip it and install as below.
+
+GitHub only keeps artifacts for 90 days, and you must be signed in to download
+them.
+
 ### Installing
 
 Copy the built bundle into your host's plugin folder, then rescan:
@@ -64,6 +75,25 @@ Copy the built bundle into your host's plugin folder, then rescan:
 | Windows | `C:\Program Files\Common Files\VST3\` | `C:\Program Files\Common Files\CLAP\` |
 | macOS | `~/Library/Audio/Plug-Ins/VST3/` | `~/Library/Audio/Plug-Ins/CLAP/` |
 | Linux | `~/.vst3/` | `~/.clap/` |
+
+`Chorus.vst3` is a **folder**, not a single file. Copy the whole thing — a host
+cannot load it if its internal structure is broken up.
+
+### Ableton Live
+
+Live uses the **VST3** build. It does not support CLAP, and it has not needed a
+`.dll` since VST2 — `Chorus.vst3` is the file you want.
+
+1. Copy `Chorus.vst3` into `C:\Program Files\Common Files\VST3\`
+   (macOS: `~/Library/Audio/Plug-Ins/VST3/`).
+2. In Live: **Options → Preferences → Plug-Ins**, turn on **Use VST3 Plug-In
+   System Folders**, then click **Rescan**.
+3. The plugin appears under **Plug-Ins → Independent → Chorus**.
+
+If it does not show up, the usual causes are an architecture mismatch (Live is
+64-bit and needs the 64-bit build) or a partially copied bundle. Live's
+**Plug-Ins** preference pane lists plugins it rejected, which is the quickest
+way to tell the two apart.
 
 ## Tests
 
