@@ -194,7 +194,9 @@ void testEngine()
 
     // Stereo spread must actually decorrelate the channels.
     {
-        auto runWithSpread = [] (float spread, std::vector<float>& l, std::vector<float>& r)
+        // sr is captured explicitly: MSVC rejects implicit capture of a
+        // function-local constexpr (C3493) where GCC and Clang allow it.
+        auto runWithSpread = [sr] (float spread, std::vector<float>& l, std::vector<float>& r)
         {
             chorus::ChorusEngine engine;
             chorus::ChorusEngine::Parameters p;

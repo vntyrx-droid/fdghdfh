@@ -8,6 +8,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A new push supersedes any run still going for the same branch, so stale runs
+# stop competing for the runner pool.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -47,14 +53,17 @@ jobs:
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
+      # The plugin is built and uploaded before the tests, so that a test-only
+      # failure cannot discard a perfectly good binary. The job still fails if
+      # the tests fail.
+      #
       # An explicit job count matters: a bare --parallel becomes "make -j" with
       # no limit on the Unix generators, which spawns enough concurrent
       # compiles to exhaust the runner's memory and get it killed with SIGTERM.
-      - name: Build
-        run: cmake --build build --config Release --parallel 3
-
-      - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Build plugin
+        run: >
+          cmake --build build --config Release --parallel 3
+          --target Chorus_VST3 Chorus_CLAP Chorus_Standalone
 
       # Upload the whole artefacts tree so the VST3 bundle keeps its internal
       # folder structure, which hosts require in order to load it.
@@ -67,3 +76,11 @@ jobs:
             build/Chorus_artefacts/Release/CLAP/**
             build/Chorus_artefacts/Release/Standalone/**
           if-no-files-found: error
+
+      - name: Build tests
+        run: >
+          cmake --build build --config Release --parallel 3
+          --target chorus_dsp_test chorus_processor_test
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
