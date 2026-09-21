@@ -47,8 +47,11 @@ jobs:
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
+      # An explicit job count matters: a bare --parallel becomes "make -j" with
+      # no limit on the Unix generators, which spawns enough concurrent
+      # compiles to exhaust the runner's memory and get it killed with SIGTERM.
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel 3
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
