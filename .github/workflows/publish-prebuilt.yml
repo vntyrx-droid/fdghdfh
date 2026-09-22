@@ -1,0 +1,50 @@
+name: Publish prebuilt
+
+# Actions artifacts are served from Azure blob storage, which some networks
+# block. This copies an existing artifact onto a standalone git branch so it
+# can be fetched over plain git instead.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Workflow run ID to take the Chorus-Windows artifact from"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the built Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Chorus-Windows
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: payload
+
+      - name: Show what was downloaded
+        run: find payload -type f -exec ls -l {} \;
+
+      # A single-commit orphan branch, force-pushed, so the binary never lands
+      # in the source history.
+      - name: Publish to the prebuilt-windows branch
+        run: |
+          set -euo pipefail
+          zip -r "$RUNNER_TEMP/Chorus-Windows.zip" payload
+          mkdir "$RUNNER_TEMP/pub"
+          mv "$RUNNER_TEMP/Chorus-Windows.zip" "$RUNNER_TEMP/pub/"
+          cd "$RUNNER_TEMP/pub"
+          git init -q
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git checkout -q -b prebuilt-windows
+          git add Chorus-Windows.zip
+          git commit -qm "Prebuilt Windows build from run ${{ inputs.run_id }}"
+          git push -q --force \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            prebuilt-windows
